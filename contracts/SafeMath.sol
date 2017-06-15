@@ -1,5 +1,4 @@
-
-      a/ Reserve 5m tokens for MASS Ltd. solidity ^0.4.10;
+pragma solidity ^0.4.10;
 
 /* taking ideas from FirstBlood token */
 contract SafeMath {
@@ -27,4 +26,5 @@ contract SafeMath {
       assert((x == 0)||(z/x == y));
       return z;
     }
+
 }
