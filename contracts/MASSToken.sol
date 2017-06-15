@@ -211,9 +211,9 @@ contract MASSToken is StandardToken, SafeMath {
       
       //MASS Ltd. takes 10% on top of purchases.
       uint256 massFeeTokens = (tokens/massFee);
-      uint256 promisoryFeeTokens = (tokens/promisoryFee);
-      uint256 bountyFeeTokens = (tokens/promisoryFee);
-      uint256 totalTokens = tokens + massFeeTokens + promisoryTokens + bountyTokens;
+      uint256 priorFeeTokens = (tokens/priorFee);
+      uint256 bountyFeeTokens = (tokens/priorFee);
+      uint256 totalTokens = tokens + massFeeTokens + priorFeeTokens + bountyFeeTokens;
       uint256 checkedSupply = safeAdd(totalSupply, totalTokens);
 
       // return money if something goes wrong
@@ -222,7 +222,7 @@ contract MASSToken is StandardToken, SafeMath {
       totalSupply = checkedSupply;
       balances[msg.sender] += tokens;  // safeAdd not needed; bad semantics to use here
       balances[massFundDeposit] += massFeeTokens; //Add the fee to the MASS address.
-      balances[massPromisoryDeposit] += promisoryFeeTokens; // Add the fee to the prior commitments address.
+      balances[massPromisoryDeposit] += priorFeeTokens; // Add the fee to the prior commitments address.
       balances[massBountyDeposit] += bountyFeeTokens; // Add the fee to the bounty programs.
       bonuses[msg.sender] += bonusTokens;
       CreateMASS(msg.sender, tokens);  // logs token creation
@@ -280,7 +280,7 @@ contract MASSToken is StandardToken, SafeMath {
       totalSupply = safeSubtract(totalSupply, massVal); // extra safe
       // remove bonus from MASS Ltd. wallet
       uint256 massFeeTokens = (totalVal/massFee);
-      uint256 massPromisoryTokens = (totalVal/promisoryFee);
+      uint256 massPromisoryTokens = (totalVal/priorFee);
       balances[massFundDeposit] -= massFeeTokens;
       balances[massPromisoryDeposit] -= massPromisoryTokens;
       balances[massBountyDeposit] -= massPromisoryTokens;
