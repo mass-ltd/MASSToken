@@ -82,7 +82,7 @@ contract MASSToken is StandardToken, SafeMath {
       presaleEndBlock = _presaleEndBlock;
       totalSupply = 0;
       icoStatus = ICOStatus.presale;
-      allowTransfers = true; // No transfers during presale.
+      allowTransfers = false; // No transfers during presale.
       saleStart = now;
       contractOwner = msg.sender;
       fundingStartBlock = 0;
