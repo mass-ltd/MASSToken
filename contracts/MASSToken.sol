@@ -22,12 +22,11 @@ contract MASSToken is StandardToken, SafeMath {
     address public ethPromisoryDeposit; // deposit address for Eth for prior commitments.
     address public massBountyDeposit; // deposit address for MASS to bounty programs.
     address public ethBountyDeposit; // deposit address for Eth to bounty programs.
+
     // crowdsale parameters
-    bool public isFinalized;              // switched to true in operational state
-    uint256 public presaleStartBlock;
-    uint256 public presaleEndBlock;
-    uint256 public fundingStartBlock;
-    uint256 public fundingEndBlock;
+    bool public isFinalized = false;              // switched to true in operational state
+    uint256 public fundingStartBlock = 0;
+    uint256 public fundingEndBlock = 0;
     uint256 public constant tokenExchangeRate = 1000; // 1000 MASS (attograms) tokens per 1 ETH (wei)
     uint256 public constant tokenCreationCap =  61 * (10**6) * 10**decimals; // 61m MASS cap
     mapping (address => uint256) blockRewards; // Map block rewards to the remote Ethereum addresses.
@@ -39,18 +38,12 @@ contract MASSToken is StandardToken, SafeMath {
     // presale/ICO bonues
     bool public presaleReleased = false;
     uint256 public constant massFee = 10; // 10%
-    uint256 public constant priorFee = 100;  // 1%
-    uint256 public constant preSaleBonus30 = 300; // 30% more tokens for all orders during presale upto 10m tokens.
-    uint256 public constant preSaleBonus30Cap = 10 * (10**6) * 10**decimals;
+    uint256 public constant promisoryFee = 100;  // 1%
     uint256 public constant icoSaleBonus20 = 200; // 20% more tokens for first 5m tokens on ICO
     uint256 public constant icoSaleBonus20Cap = 5 * (10**6) * 10**decimals;
     uint256 public constant icoSaleBonus10 = 100; // 10% more tokens for next 10m tokens on ICO
     uint256 public constant icoSaleBonus10Cap = 15 * (10**6) * 10**decimals;
 
-    // presale/ICO status
-    enum ICOStatus {presale, ico, finalized}
-    ICOStatus icoStatus;
-    
     // events
     event LogRefund(address indexed _to, uint256 _value);
     event CreateMASS(address indexed _to, uint256 _value);
@@ -67,8 +60,8 @@ contract MASSToken is StandardToken, SafeMath {
         address _ethPromisoryDeposit,
         address _massBountyDeposit,
         address _ethBountyDeposit,
-        uint256 _presaleStartBlock,
-        uint256 _presaleEndBlock)
+        uint256 _fundingStartBlock,
+        uint256 _fundingEndBlock)
     {
       isFinalized = false;                   //controls pre through crowdsale state
       ethFundDeposit = _ethFundDeposit;
@@ -78,19 +71,16 @@ contract MASSToken is StandardToken, SafeMath {
       ethPromisoryDeposit = _ethPromisoryDeposit;
       massBountyDeposit = _massBountyDeposit;
       ethBountyDeposit = _ethBountyDeposit;
-      presaleStartBlock = _presaleStartBlock;
-      presaleEndBlock = _presaleEndBlock;
+      fundingStartBlock = _fundingStartBlock;
+      fundingEndBlock = _fundingEndBlock;
       totalSupply = 0;
-      icoStatus = ICOStatus.presale;
-      allowTransfers = false; // No transfers during presale.
+      allowTransfers = false; // No transfers during ico.
       saleStart = now;
       contractOwner = msg.sender;
-      fundingStartBlock = 0;
-      fundingEndBlock = 0;
       // Baked in presale accounts.
       releasePreSaleTokens();
     }
-
+    
     function releasePreSaleTokens() internal {
         if (presaleReleased) throw;
         balances[0x422c18FD8aeb1Ad77200190c6355C79B1086Fcc2] = 1300 * (10**18);
@@ -98,12 +88,16 @@ contract MASSToken is StandardToken, SafeMath {
         balances[massFundDeposit] = 1300 * (10**17); // 10% goes to MASS Ltd.
         balances[massPromisoryDeposit] = 1300 * (10**16); // 1% goes to prior commitments.
         balances[massBountyDeposit] = 1300 * (10**16); // 1% goes to bounty programs.
+        totalSupply += balances[0x422c18FD8aeb1Ad77200190c6355C79B1086Fcc2] + balances[massFundDeposit] + balances[massPromisoryDeposit] + balances[massBountyDeposit];
+        totalPreSale += totalSupply;
         CreateMASS(0x422c18FD8aeb1Ad77200190c6355C79B1086Fcc2, balances[0x422c18FD8aeb1Ad77200190c6355C79B1086Fcc2]);
         //balances[address2] = 1003 * (10**18);
         //bonuses[address2] = 300 * (10**18); // Store the bonus.
         //balances[massFundDeposit] += 1003 * (10**17); // 10% goes to MASS Ltd.
         //balances[massPromisoryDeposit] = 1003 * (10**16); // 1% goes to prior commitments.
         //balances[massBountyDeposit] = 1003 * (10**16); // 1% goes to bounty programs.
+        //totalSupply += balances[address2] + balances[massFundDeposit] + balances[massPromisoryDeposit] + balances[massBountyDeposit];
+        //totalPreSale += totalSupply;
         //CreateMASS(address2, balances[address2]);
         presaleReleased = true;
     }
@@ -119,7 +113,7 @@ contract MASSToken is StandardToken, SafeMath {
         require (msg.sender == contractOwner);
         fundingStartBlock = _fundingStartBlock;
         fundingEndBlock = _fundingEndBlock;
-        totalPreSale = totalSupply;
+        //totalPreSale = totalSupply;
     }
     
     /// @dev The backend sets the amount of rewards per address.
@@ -160,47 +154,24 @@ contract MASSToken is StandardToken, SafeMath {
     /// Accepts ether and creates new MASS tokens.
     function createTokens() payable external {
       if (isFinalized) throw;
-      if (icoStatus == ICOStatus.presale) {
-          if (block.number < presaleStartBlock) throw;
-          // End presale when end block is reached and allow transfers.
-          if (block.number >= presaleEndBlock) { 
-              allowTransfers = true;
-              return;
-          }
-      }
-      if (icoStatus == ICOStatus.ico) {
-          if (block.number < fundingStartBlock) throw;
-          if (block.number > fundingEndBlock) throw;
-      }
+      if (block.number < fundingStartBlock) throw;
+      if (block.number > fundingEndBlock) throw;
       if (msg.value == 0) throw;
       
       // Check if we've sold out completely.
       if (totalSupply == tokenCreationCap) throw; // Don't allow purchases above cap.
       
-      //Handle presale/ico bonuses
+      //Handle ico bonuses
       uint256 tmpExchangeRate = 0;
       uint256 bonusTokens = 0;
-      
-      if (icoStatus == ICOStatus.presale) {
-          if (totalSupply < preSaleBonus30Cap) {
-            bonusTokens = (preSaleBonus30 * msg.value);
-            tmpExchangeRate = tokenExchangeRate + preSaleBonus30;
-          } else {
-              icoStatus = ICOStatus.ico; // Sold out of presale, enter ICO.
-              allowTransfers = true; // Allow trades during ICO.
-          }
-      }
-      
       uint256 tmpTotalSupply = totalSupply;
       tmpTotalSupply = totalSupply - totalPreSale;
-      if (icoStatus == ICOStatus.ico) {
-          if (tmpTotalSupply < icoSaleBonus20Cap) {
-              bonusTokens = (icoSaleBonus20 * msg.value);
-              tmpExchangeRate = tokenExchangeRate + icoSaleBonus20;
-          } else if (tmpTotalSupply < icoSaleBonus10Cap) {
-              bonusTokens = (icoSaleBonus10 * msg.value);
-              tmpExchangeRate = tokenExchangeRate + icoSaleBonus10;
-          }
+      if (tmpTotalSupply < icoSaleBonus20Cap) {
+          bonusTokens = (icoSaleBonus20 * msg.value);
+          tmpExchangeRate = tokenExchangeRate + icoSaleBonus20;
+      } else if (tmpTotalSupply < icoSaleBonus10Cap) {
+          bonusTokens = (icoSaleBonus10 * msg.value);
+          tmpExchangeRate = tokenExchangeRate + icoSaleBonus10;
       }
       
       if (tokenExchangeRate > tmpExchangeRate) {
@@ -211,9 +182,9 @@ contract MASSToken is StandardToken, SafeMath {
       
       //MASS Ltd. takes 10% on top of purchases.
       uint256 massFeeTokens = (tokens/massFee);
-      uint256 priorFeeTokens = (tokens/priorFee);
-      uint256 bountyFeeTokens = (tokens/priorFee);
-      uint256 totalTokens = tokens + massFeeTokens + priorFeeTokens + bountyFeeTokens;
+      uint256 promisoryFeeTokens = (tokens/promisoryFee);
+      uint256 bountyFeeTokens = (tokens/promisoryFee);
+      uint256 totalTokens = tokens + massFeeTokens + promisoryFeeTokens + bountyFeeTokens;
       uint256 checkedSupply = safeAdd(totalSupply, totalTokens);
 
       // return money if something goes wrong
@@ -222,7 +193,7 @@ contract MASSToken is StandardToken, SafeMath {
       totalSupply = checkedSupply;
       balances[msg.sender] += tokens;  // safeAdd not needed; bad semantics to use here
       balances[massFundDeposit] += massFeeTokens; //Add the fee to the MASS address.
-      balances[massPromisoryDeposit] += priorFeeTokens; // Add the fee to the prior commitments address.
+      balances[massPromisoryDeposit] += promisoryFeeTokens; // Add the fee to the prior commitments address.
       balances[massBountyDeposit] += bountyFeeTokens; // Add the fee to the bounty programs.
       bonuses[msg.sender] += bonusTokens;
       CreateMASS(msg.sender, tokens);  // logs token creation
@@ -236,12 +207,17 @@ contract MASSToken is StandardToken, SafeMath {
       // move to operational
       isFinalized = true;
       uint256 poolBalance = this.balance; // Store the eth balance of the entire pool.
-      uint256 feeBalance = poolBalance * (massFee/100);
+      uint256 feeBalance = (poolBalance/massFee);
+      uint256 bountyBalance = (poolBalance/promisoryFee); // 1% to Bounty
+      uint256 promisoryBalance = (poolBalance/promisoryFee); // 1% to prior commitments.
       poolBalance -= feeBalance; //Subtract the 10% fee from the investment pool and send to MASS Ltd.
+      poolBalance -= bountyBalance;
+      poolBalance -= promisoryBalance;
       totalEthereum = poolBalance; // Store the final value of Ethereum before it is sent.
-      icoStatus = ICOStatus.finalized;
-      if(!ethFundDeposit.send(poolBalance)) throw;  // send the eth to the fund.
+      if(!ethFundDeposit.send(poolBalance)) throw;  // send 88% of the eth to the fund.
       if(!ethFeeDeposit.send(feeBalance)) throw;  // send 10% eth to MASS Ltd.
+      if(!ethBountyDeposit.send(bountyBalance)) throw; // send 1% eth to the bounty address
+      if(!ethPromisoryDeposit.send(promisoryBalance)) throw; // send 1% eth to the promisory address for prior commitments.
     }
     
     /// @dev Disable transfers of MASS during payouts.
@@ -258,38 +234,6 @@ contract MASSToken is StandardToken, SafeMath {
         allowTransfers = true;
     }
 
-    // Allows contributors to recover their ether in the case of a failed funding campaign.
-    function refund() external {
-      if(isFinalized) throw;                       // prevents refund if operational
-      if (icoStatus == ICOStatus.presale) {
-        if (block.number <= presaleEndBlock) throw;  
-      }
-      if (icoStatus == ICOStatus.ico) {
-        if (block.number <= fundingEndBlock) throw; // prevents refund until sale period is over
-      }
-      if (msg.sender == massFundDeposit) throw;    // MASS Ltd cannot get refunds.
-      if (msg.sender == massPromisoryDeposit) throw; // Promisory address cannot get refunds.
-      if (msg.sender == massBountyDeposit) throw; // Bounty address cannot get refunds.
-      uint256 bonusVal = bonuses[msg.sender];
-      uint256 massVal = balances[msg.sender];
-      uint256 totalVal = massVal + bonusVal; 
-      uint256 refundVal = massVal - bonusVal; // subtract any bonus tokens from refund.
-      if (refundVal == 0) throw;
-      balances[msg.sender] = 0;
-      bonuses[msg.sender] = 0;
-      totalSupply = safeSubtract(totalSupply, massVal); // extra safe
-      // remove bonus from MASS Ltd. wallet
-      uint256 massFeeTokens = (totalVal/massFee);
-      uint256 massPromisoryTokens = (totalVal/priorFee);
-      balances[massFundDeposit] -= massFeeTokens;
-      balances[massPromisoryDeposit] -= massPromisoryTokens;
-      balances[massBountyDeposit] -= massPromisoryTokens;
-      totalSupply = safeSubtract(totalSupply, bonusVal);
-      uint256 ethVal = massVal / tokenExchangeRate;     // should be safe; previous throws covers edges
-      LogRefund(msg.sender, ethVal);               // log it 
-      if (!msg.sender.send(ethVal)) throw;       // if you're using a contract; make sure it works with .send gas limits
-    }
-    
     /// @dev Change ownership of contract in case of emergency.
     function changeOwnership(address newOwner) {
         require (msg.sender == contractOwner);
