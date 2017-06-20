@@ -154,6 +154,7 @@ contract MASSToken is StandardToken, SafeMath {
     /// Accepts ether and creates new MASS tokens.
     function createTokens() payable external {
       if (isFinalized) throw;
+      require(!isContract(msg.sender)); //Disallow contracts from purchasing.
       if (block.number < fundingStartBlock) throw;
       if (block.number > fundingEndBlock) throw;
       if (msg.value == 0) throw;
@@ -238,5 +239,16 @@ contract MASSToken is StandardToken, SafeMath {
     function changeOwnership(address newOwner) {
         require (msg.sender == contractOwner);
         contractOwner = newOwner;
+    }
+
+    /// @dev Internal function to prevent contracts from purchasing tokens.
+     // Borrowed from StatusContributions.sol (SNT)
+    function isContract(address _address) constant internal returns (bool) {
+        if (_address == 0) return false;
+        uint256 size;
+        assembly {
+            size := extcodesize(_address)
+        }
+        return (size > 0);
     }
 }
