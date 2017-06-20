@@ -2,10 +2,9 @@ pragma solidity ^0.4.11;
 import "./StandardToken.sol";
 import "./SafeMath.sol";
 
-//Simple eth->token contract borrowed from BAT.
 //Allows for bonuses during different phases.
 //Gives devs a cut of eth and tokens.
-//Pays out rewards daily. Rewards pay for themselves based on the gas price.
+//Initial ICO design based off BAT (known working and secure).
 contract MASSToken is StandardToken, SafeMath {
 
     // metadata
