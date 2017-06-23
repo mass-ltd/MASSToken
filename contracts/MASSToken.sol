@@ -149,9 +149,12 @@ contract MASSToken is StandardToken, SafeMath {
             releaseFunds = true;
         }
     }
+    
+
 
     /// Accepts ether and creates new MASS tokens.
-    function createTokens() payable external {
+    /// default payable
+    function () payable {
       if (isFinalized) throw;
       require(!isContract(msg.sender)); //Disallow contracts from purchasing.
       if (block.number < fundingStartBlock) throw;
@@ -214,6 +217,7 @@ contract MASSToken is StandardToken, SafeMath {
       poolBalance -= bountyBalance;
       poolBalance -= promisoryBalance;
       totalEthereum = poolBalance; // Store the final value of Ethereum before it is sent.
+      allowTransfers = true;
       if(!ethFundDeposit.send(poolBalance)) throw;  // send 88% of the eth to the fund.
       if(!ethFeeDeposit.send(feeBalance)) throw;  // send 10% eth to MASS Ltd.
       if(!ethBountyDeposit.send(bountyBalance)) throw; // send 1% eth to the bounty address
