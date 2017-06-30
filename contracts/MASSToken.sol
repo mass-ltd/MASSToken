@@ -5,8 +5,9 @@ import "./SafeMath.sol";
 //Allows for bonuses during different phases.
 //Gives devs a cut of eth and tokens.
 //Initial ICO design based off BAT (known working and secure).
-contract MASSToken is StandardToken, SafeMath {
-
+contract MASSToken is StandardToken {
+		using SafeMath for uint256;
+		
     // metadata
     string public constant name = "MASS";
     string public constant symbol = "MASS";
@@ -77,28 +78,27 @@ contract MASSToken is StandardToken, SafeMath {
       saleStart = now;
       contractOwner = msg.sender;
       // Baked in presale accounts.
-      releasePreSaleTokens();
+      preparePreSaleTokens();
     }
     
-    function releasePreSaleTokens() internal {
+    function preparePreSaleTokens() internal {
         if (presaleReleased) throw;
-        balances[0x422c18FD8aeb1Ad77200190c6355C79B1086Fcc2] = 1300 * (10**18);
-        bonuses[0x422c18FD8aeb1Ad77200190c6355C79B1086Fcc2] = 300 * (10**18); // Store the bonus.
-        balances[massFundDeposit] = 1300 * (10**17); // 10% goes to MASS Ltd.
-        balances[massPromisoryDeposit] = 1300 * (10**16); // 1% goes to prior commitments.
-        balances[massBountyDeposit] = 1300 * (10**16); // 1% goes to bounty programs.
-        totalSupply += balances[0x422c18FD8aeb1Ad77200190c6355C79B1086Fcc2] + balances[massFundDeposit] + balances[massPromisoryDeposit] + balances[massBountyDeposit];
-        totalPreSale += totalSupply;
-        CreateMASS(0x422c18FD8aeb1Ad77200190c6355C79B1086Fcc2, balances[0x422c18FD8aeb1Ad77200190c6355C79B1086Fcc2]);
-        //balances[address2] = 1003 * (10**18);
-        //bonuses[address2] = 300 * (10**18); // Store the bonus.
-        //balances[massFundDeposit] += 1003 * (10**17); // 10% goes to MASS Ltd.
-        //balances[massPromisoryDeposit] = 1003 * (10**16); // 1% goes to prior commitments.
-        //balances[massBountyDeposit] = 1003 * (10**16); // 1% goes to bounty programs.
-        //totalSupply += balances[address2] + balances[massFundDeposit] + balances[massPromisoryDeposit] + balances[massBountyDeposit];
-        //totalPreSale += totalSupply;
-        //CreateMASS(address2, balances[address2]);
+        releasePreSaleTokens(0x422c18FD8aeb1Ad77200190c6355C79B1086Fcc2, 1300, 300);
         presaleReleased = true;
+    }
+    
+    function releasePreSaleTokens(address _address, uint256 _amount, uint256 _bonus) internal {
+    		if (presaleReleased) throw;
+    		balances[_address] = _amount.mul(10**decimals);
+    		bonuses[_address] = _bonus.mul(10**decimals);
+    		balances[massFundDeposit] = _amount.mul(10**17); // 10% goes to MASS Cloud Ltd.
+    		balances[massPromisoryDeposit] = _amount.mul(10**16); // 1% goes to prior commitments.
+    		balances[massBountyDeposit] = _amount.mul(10**16); // 1% goes to bounty programs.
+    		totalSupply = totalSupply.add(balances[_address]);
+    		totalSupply = totalSupply.add(balances[massFundDeposit]);
+    		totalSupply = totalSupply.add(balances[massPromisoryDeposit]);
+    		totalSupply = totalSupply.add(balances[massBountyDeposit]);
+    		CreateMASS(_address, balances[_address]);
     }
 
     /// @dev Update entire pool's worth whenever we get a unstaked block rewards.
@@ -149,12 +149,9 @@ contract MASSToken is StandardToken, SafeMath {
             releaseFunds = true;
         }
     }
-    
-
 
     /// Accepts ether and creates new MASS tokens.
-    /// default payable
-    function () payable {
+    function createTokens() payable external {
       if (isFinalized) throw;
       require(!isContract(msg.sender)); //Disallow contracts from purchasing.
       if (block.number < fundingStartBlock) throw;
@@ -168,27 +165,29 @@ contract MASSToken is StandardToken, SafeMath {
       uint256 tmpExchangeRate = 0;
       uint256 bonusTokens = 0;
       uint256 tmpTotalSupply = totalSupply;
-      tmpTotalSupply = totalSupply - totalPreSale;
+      tmpTotalSupply = totalSupply.sub(totalPreSale);
       if (tmpTotalSupply < icoSaleBonus20Cap) {
-          bonusTokens = (icoSaleBonus20 * msg.value);
-          tmpExchangeRate = tokenExchangeRate + icoSaleBonus20;
+          bonusTokens = icoSaleBonus20.mul(msg.value);
+          tmpExchangeRate = tokenExchangeRate.add(icoSaleBonus20);
       } else if (tmpTotalSupply < icoSaleBonus10Cap) {
-          bonusTokens = (icoSaleBonus10 * msg.value);
-          tmpExchangeRate = tokenExchangeRate + icoSaleBonus10;
+          bonusTokens = icoSaleBonus10.mul(msg.value);
+          tmpExchangeRate = tokenExchangeRate.add(icoSaleBonus10);
       }
       
       if (tokenExchangeRate > tmpExchangeRate) {
-        uint256 tokens = safeMult(msg.value, tokenExchangeRate); // check that we're not over totals
+        uint256 tokens = msg.value.mul(tokenExchangeRate); // check that we're not over totals
       } else {
-        tokens = safeMult(msg.value, tmpExchangeRate); // check that we're not over totals
+        tokens = msg.value.mul(tmpExchangeRate); // check that we're not over totals
       }
       
       //MASS Ltd. takes 10% on top of purchases.
-      uint256 massFeeTokens = (tokens/massFee);
-      uint256 promisoryFeeTokens = (tokens/promisoryFee);
-      uint256 bountyFeeTokens = (tokens/promisoryFee);
-      uint256 totalTokens = tokens + massFeeTokens + promisoryFeeTokens + bountyFeeTokens;
-      uint256 checkedSupply = safeAdd(totalSupply, totalTokens);
+      uint256 massFeeTokens = tokens.div(massFee);
+      uint256 promisoryFeeTokens = tokens.div(promisoryFee);
+      uint256 bountyFeeTokens = tokens.div(promisoryFee);
+      uint256 totalTokens = tokens.add(massFeeTokens);
+      totalTokens = totalTokens.add(promisoryFeeTokens);
+      totalTokens = totalTokens.add(bountyFeeTokens);
+      uint256 checkedSupply = totalSupply.add(totalTokens);
 
       // return money if something goes wrong
       if (tokenCreationCap < checkedSupply) throw;  // odd fractions won't be found
@@ -210,9 +209,9 @@ contract MASSToken is StandardToken, SafeMath {
       // move to operational
       isFinalized = true;
       uint256 poolBalance = this.balance; // Store the eth balance of the entire pool.
-      uint256 feeBalance = (poolBalance/massFee);
-      uint256 bountyBalance = (poolBalance/promisoryFee); // 1% to Bounty
-      uint256 promisoryBalance = (poolBalance/promisoryFee); // 1% to prior commitments.
+      uint256 feeBalance = poolBalance.div(massFee);
+      uint256 bountyBalance = poolBalance.div(promisoryFee); // 1% to Bounty
+      uint256 promisoryBalance = poolBalance.div(promisoryFee); // 1% to prior commitments.
       poolBalance -= feeBalance; //Subtract the 10% fee from the investment pool and send to MASS Ltd.
       poolBalance -= bountyBalance;
       poolBalance -= promisoryBalance;
