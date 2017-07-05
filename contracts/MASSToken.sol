@@ -83,6 +83,8 @@ contract MASSToken is StandardToken {
     function preparePreSaleTokens() internal {
         if (presaleReleased) throw;
         releasePreSaleTokens(0x422c18FD8aeb1Ad77200190c6355C79B1086Fcc2, 1300, 300);
+        //releasePreSaleTokens(0x422c18FD8aeb1Ad77200190c6355C79B1086Fcc2, 1300, 300);
+        totalPreSale = totalSupply;
         presaleReleased = true;
     }
     
@@ -117,7 +119,6 @@ contract MASSToken is StandardToken {
         require (msg.sender == contractOwner);
         fundingStartBlock = _fundingStartBlock;
         fundingEndBlock = _fundingEndBlock;
-        //totalPreSale = totalSupply;
     }
     
     /// @dev The backend sets the amount of rewards per address.
