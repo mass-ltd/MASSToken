@@ -22,7 +22,7 @@ contract Token {
     event Burn(address indexed _owner, uint256 _value);
     
     // extra functionality while live
-    bool public allowTransfers = true; // Stop transfers during payout to prevent abuse.
+    bool public allowTransfers = false; // Stop transfers during payout to prevent abuse.
     // Lock MASS Ltd. tokens for 1 year
     uint256 public saleStart;
 }
@@ -102,18 +102,13 @@ contract StandardToken is Token {
     }
     
     //Allow token holders to cash out and burn their tokens.
+    //The backend will handle the math and sending the eth since Solidity isn't efficient at math nor is it precise enough.
     function burn(uint256 _value) returns (bool success) {
         if (!allowTransfers) throw; //Don't allow burning during payouts.
-        if (now < saleStart + (60 days)) throw; //Don't allow burn/cashout for 2 months.
-        // do the math and payout.
-        uint256 ethVal = (_value.div(totalSupply)).mul(totalEthereum);
-        uint256 burnFee = ethVal.div(10);
-        ethVal = ethVal.sub(burnFee);
+        if (now < saleStart + (60 days)) throw; //Don't allow burn/cashout for 2 months. TEST
         totalSupply -= _value;
         balances[msg.sender] -= _value;
-        totalEthereum -= ethVal;
         Burn(msg.sender, _value);
-        if(!msg.sender.send(ethVal)) throw;
         return true;
     }
     
