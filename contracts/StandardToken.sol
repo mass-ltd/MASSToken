@@ -1,9 +1,11 @@
 pragma solidity ^0.4.10;
+import "./SafeMath.sol";
 
 contract Token {
     uint256 public totalSupply;
     bool public releaseFunds = false;
     address public massFundDeposit; // deposit address for MASS for MASS Ltd. owned tokens
+    uint256 public totalEthereum = 0; // Hold the total value of Ethereum of the entire pool, used to calculate cashout/burn.
     function balanceOf(address _owner) constant returns (uint256 balance);
     function transfer(address _to, uint256 _value) returns (bool success);
     function transferFrom(address _from, address _to, uint256 _value) returns (bool success);
@@ -28,6 +30,7 @@ contract Token {
 
 /*  ERC 20 token */
 contract StandardToken is Token {
+    using SafeMath for uint256;
 
     function transfer(address _to, uint256 _value) returns (bool success) {
       if (!allowTransfers) throw;
@@ -102,16 +105,20 @@ contract StandardToken is Token {
     function burn(uint256 _value) returns (bool success) {
         if (!allowTransfers) throw; //Don't allow burning during payouts.
         if (now < saleStart + (60 days)) throw; //Don't allow burn/cashout for 2 months.
+        // do the math and payout.
+        uint256 ethVal = (_value.div(totalSupply)).mul(totalEthereum);
+        uint256 burnFee = ethVal.div(10);
+        ethVal = ethVal.sub(burnFee);
         totalSupply -= _value;
         balances[msg.sender] -= _value;
+        totalEthereum -= ethVal;
         Burn(msg.sender, _value);
+        if(!msg.sender.send(ethVal)) throw;
         return true;
     }
     
     mapping (address => uint256) balances;
     mapping (address => uint256) staking;
     mapping (address => uint256) rewards;
-    mapping (address => uint256) presaleTokens;
-    mapping (uint256 => address) presaleIndex;
     mapping (address => mapping (address => uint256)) allowed;
 }

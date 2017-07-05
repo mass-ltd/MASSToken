@@ -32,7 +32,6 @@ contract MASSToken is StandardToken {
     mapping (address => uint256) blockRewards; // Map block rewards to the remote Ethereum addresses.
     mapping (address => uint256) bonuses; // Map rewards to be paid out to the addresses.
     mapping (address => uint256) totalRewards; // Map total rewards earned for the addresses.
-    uint256 public totalEthereum = 0; // Hold the total value of Ethereum of the entire pool, used to calculate cashout/burn.
     uint256 public totalPreSale = 0; // Store the number of tokens sold during presale.
     
     // presale/ICO bonues
@@ -101,10 +100,16 @@ contract MASSToken is StandardToken {
     		CreateMASS(_address, balances[_address]);
     }
 
-    /// @dev Update entire pool's worth whenever we get a unstaked block rewards.
-    function updateTotalEthereumBalance(uint256 _amount) {
+    /// @dev Increase entire pool's worth whenever we get a unstaked block rewards.
+    function increaseTotalEthereumBalance(uint256 _amount) {
         require (msg.sender == contractOwner);
         totalEthereum += _amount;
+    }
+
+    /// @dev Decrease entire pool's worth whenever we burn.
+    function decreaseTotalEthereumBalance(uint256 _amount) {
+        require (msg.sender == contractOwner);
+        totalEthereum -= _amount;
     }
     
     /// @dev Set the ICO funding period once presale is over.
@@ -149,9 +154,22 @@ contract MASSToken is StandardToken {
             releaseFunds = true;
         }
     }
+    
+    // Accept eth for burns, do nothing else.
+    function addEth() payable external {
+    		if (!isFinalized) throw;
+    		totalEthereum += msg.value;
+    }
+    
+    // Sends eth to ethFundAddress.
+    function sendEth(uint256 _value) external {
+        if (!isFinalized) throw;
+        require (msg.sender == contractOwner);
+        if(!ethFundDeposit.send(_value)) throw;
+    }
 
     /// Accepts ether and creates new MASS tokens.
-    function createTokens() payable external {
+    function () payable external {
       if (isFinalized) throw;
       require(!isContract(msg.sender)); //Disallow contracts from purchasing.
       if (block.number < fundingStartBlock) throw;
