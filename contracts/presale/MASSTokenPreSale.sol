@@ -2,7 +2,9 @@ pragma solidity ^0.4.10;
 import "./PreSaleToken.sol";
 import "./SafeMath.sol";
 
-contract MASSTokenPreSale is PreSaleToken, SafeMath {
+contract MASSTokenPreSale is PreSaleToken {
+    using SafeMath for uint256;
+
     uint256 public constant decimals = 18;
     
     bool public isEnded = false;
