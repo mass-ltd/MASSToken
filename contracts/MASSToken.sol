@@ -36,6 +36,7 @@ contract MASSToken is StandardToken {
     
     // presale/ICO bonues
     bool public presaleReleased = false;
+    bool public presaleFundsAdded = false;
     uint256 public constant massFee = 10; // 10%
     uint256 public constant promisoryFee = 100;  // 1%
     uint256 public constant icoSaleBonus20 = 200; // 20% more tokens for first 5m tokens on ICO
@@ -100,6 +101,14 @@ contract MASSToken is StandardToken {
     		totalSupply = totalSupply.add(balances[massPromisoryDeposit]);
     		totalSupply = totalSupply.add(balances[massBountyDeposit]);
     		CreateMASS(_address, balances[_address]);
+    }
+
+    // Allow the contract owner to add the funds from the presale without buying tokens.
+    // This can only happen once.
+    function addPreSaleFunds() payable external {
+        require (msg.sender == contractOwner);
+        if (presaleFundsAdded) throw;
+        presaleFundsAdded = true;
     }
 
     /// @dev Increase entire pool's worth whenever we get a unstaked block rewards.
