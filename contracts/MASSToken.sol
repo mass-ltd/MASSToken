@@ -105,6 +105,7 @@ contract MASSToken is StandardToken {
     // Allow the contract owner to add the funds from the presale without buying tokens.
     function addPreSaleFunds() payable external {
         require (msg.sender == contractOwner);
+        if (isFinalized) throw;
     }
 
     /// @dev Increase entire pool's worth whenever we get a unstaked block rewards.
