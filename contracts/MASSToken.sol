@@ -35,7 +35,6 @@ contract MASSToken is StandardToken {
     uint256 public totalPreSale = 0; // Store the number of tokens sold during presale.
     
     // presale/ICO bonues
-    bool public presaleReleased = false;
     uint256 public constant massFee = 10; // 10%
     uint256 public constant promisoryFee = 100;  // 1%
     uint256 public constant icoSaleBonus20 = 200; // 20% more tokens for first 5m tokens on ICO
@@ -76,30 +75,24 @@ contract MASSToken is StandardToken {
       allowTransfers = false; // No transfers during ico.
       saleStart = now;
       contractOwner = msg.sender;
-      // Baked in presale accounts.
-      preparePreSaleTokens();
     }
     
-    function preparePreSaleTokens() internal {
-        if (presaleReleased) throw;
-        releasePreSaleTokens(0x422c18FD8aeb1Ad77200190c6355C79B1086Fcc2, 1300, 300);
-        //releasePreSaleTokens(0x422c18FD8aeb1Ad77200190c6355C79B1086Fcc2, 1300, 300);
-        totalPreSale = totalSupply;
-        presaleReleased = true;
-    }
-    
-    function releasePreSaleTokens(address _address, uint256 _amount, uint256 _bonus) internal {
-    		if (presaleReleased) throw;
-    		balances[_address] = _amount.mul(10**decimals);
-    		bonuses[_address] = _bonus.mul(10**decimals);
-    		balances[massFundDeposit] = _amount.mul(10**17); // 10% goes to MASS Cloud Ltd.
-    		balances[massPromisoryDeposit] = _amount.mul(10**16); // 1% goes to prior commitments.
-    		balances[massBountyDeposit] = _amount.mul(10**16); // 1% goes to bounty programs.
-    		totalSupply = totalSupply.add(balances[_address]);
-    		totalSupply = totalSupply.add(balances[massFundDeposit]);
-    		totalSupply = totalSupply.add(balances[massPromisoryDeposit]);
-    		totalSupply = totalSupply.add(balances[massBountyDeposit]);
-    		CreateMASS(_address, balances[_address]);
+    // We cannot bake the addresses in because there may be too many and there is too much math involved.
+    // Instead, we'll have to automatically (via a script) import presale addresses and values.
+    // These can be verified and checked against the presale contract.
+    function releasePreSaleTokens(address _address, uint256 _amount, uint256 _bonus, uint256 _massFund, uint256 _bountyAndPriorFund) external {
+        require (msg.sender == contractOwner);
+        if (block.number > fundingStartBlock) throw; // Do not allow this one the ICO starts.
+        balances[_address] = _amount;
+        bonuses[_address] = _bonus;
+        balances[massFundDeposit] = _massFund; // 10% goes to MASS Cloud Ltd.
+        balances[massPromisoryDeposit] = _bountyAndPriorFund; // 1% goes to prior commitments.
+        balances[massBountyDeposit] = _bountyAndPriorFund; // 1% goes to bounty programs.
+        totalSupply = totalSupply.add(balances[_address]);
+        totalSupply = totalSupply.add(_massFund);
+        totalSupply = totalSupply.add(_bountyAndPriorFund);
+        totalSupply = totalSupply.add(_bountyAndPriorFund);
+        CreateMASS(_address, balances[_address]);
     }
 
     // Allow the contract owner to add the funds from the presale without buying tokens.
