@@ -92,6 +92,7 @@ contract MASSToken is StandardToken {
         _totalSupply = _totalSupply.add(_massFund);
         _totalSupply = _totalSupply.add(_bountyAndPriorFund);
         _totalSupply = _totalSupply.add(_bountyAndPriorFund);
+        totalPreSale = totalPreSale.add(_totalSupply);
         CreateMASS(_address, balances[_address]);
     }
 
@@ -184,6 +185,7 @@ contract MASSToken is StandardToken {
       uint256 bonusTokens = 0;
       uint256 tmpTotalSupply = _totalSupply;
       tmpTotalSupply = _totalSupply.sub(totalPreSale);
+      // TODO: Add check against going over bonus cap.
       if (tmpTotalSupply < icoSaleBonus20Cap) {
           bonusTokens = icoSaleBonus20.mul(msg.value);
           tmpExchangeRate = tokenExchangeRate.add(icoSaleBonus20);
