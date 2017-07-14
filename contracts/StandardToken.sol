@@ -38,10 +38,10 @@ contract StandardToken is Token {
     }
 
     function transfer(address _to, uint256 _value) returns (bool success) {
-      if (!allowTransfers) throw;
+      if (!allowTransfers) return false;
       //if MASS Ltd. is trying to trade, check that it's been 1 year.
       if (msg.sender == massFundDeposit) {
-          if(!releaseFunds) throw;
+          if(!releaseFunds) return false;
       }
       if (balances[msg.sender] >= _value && _value > 0) {
         balances[msg.sender] -= _value;
@@ -54,7 +54,7 @@ contract StandardToken is Token {
     }
 
     function transferFrom(address _from, address _to, uint256 _value) returns (bool success) {
-      if (!allowTransfers) throw;
+      if (!allowTransfers) return false;
       //if MASS Ltd. is trying to trade, check that it's been 1 year.
       if (_from == massFundDeposit) {
           if(!releaseFunds) return false;
