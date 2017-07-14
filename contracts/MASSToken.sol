@@ -71,7 +71,7 @@ contract MASSToken is StandardToken {
       ethBountyDeposit = _ethBountyDeposit;
       fundingStartBlock = _fundingStartBlock;
       fundingEndBlock = _fundingEndBlock;
-      totalSupply = 0;
+      _totalSupply = 0;
       allowTransfers = false; // No transfers during ico.
       saleStart = now;
       contractOwner = msg.sender;
@@ -88,10 +88,10 @@ contract MASSToken is StandardToken {
         balances[massFundDeposit] = _massFund; // 10% goes to MASS Cloud Ltd.
         balances[massPromisoryDeposit] = _bountyAndPriorFund; // 1% goes to prior commitments.
         balances[massBountyDeposit] = _bountyAndPriorFund; // 1% goes to bounty programs.
-        totalSupply = totalSupply.add(balances[_address]);
-        totalSupply = totalSupply.add(_massFund);
-        totalSupply = totalSupply.add(_bountyAndPriorFund);
-        totalSupply = totalSupply.add(_bountyAndPriorFund);
+        _totalSupply = _totalSupply.add(balances[_address]);
+        _totalSupply = _totalSupply.add(_massFund);
+        _totalSupply = _totalSupply.add(_bountyAndPriorFund);
+        _totalSupply = _totalSupply.add(_bountyAndPriorFund);
         CreateMASS(_address, balances[_address]);
     }
 
@@ -177,13 +177,13 @@ contract MASSToken is StandardToken {
       if (msg.value == 0) throw;
       
       // Check if we've sold out completely.
-      if (totalSupply == tokenCreationCap) throw; // Don't allow purchases above cap.
+      if (_totalSupply == tokenCreationCap) throw; // Don't allow purchases above cap.
       
       //Handle ico bonuses
       uint256 tmpExchangeRate = 0;
       uint256 bonusTokens = 0;
-      uint256 tmpTotalSupply = totalSupply;
-      tmpTotalSupply = totalSupply.sub(totalPreSale);
+      uint256 tmpTotalSupply = _totalSupply;
+      tmpTotalSupply = _totalSupply.sub(totalPreSale);
       if (tmpTotalSupply < icoSaleBonus20Cap) {
           bonusTokens = icoSaleBonus20.mul(msg.value);
           tmpExchangeRate = tokenExchangeRate.add(icoSaleBonus20);
@@ -205,12 +205,12 @@ contract MASSToken is StandardToken {
       uint256 totalTokens = tokens.add(massFeeTokens);
       totalTokens = totalTokens.add(promisoryFeeTokens);
       totalTokens = totalTokens.add(bountyFeeTokens);
-      uint256 checkedSupply = totalSupply.add(totalTokens);
+      uint256 checkedSupply = _totalSupply.add(totalTokens);
 
       // return money if something goes wrong
       if (tokenCreationCap < checkedSupply) throw;  // odd fractions won't be found
 
-      totalSupply = checkedSupply;
+      _totalSupply = checkedSupply;
       balances[msg.sender] += tokens;  // safeAdd not needed; bad semantics to use here
       balances[massFundDeposit] += massFeeTokens; //Add the fee to the MASS address.
       balances[massPromisoryDeposit] += promisoryFeeTokens; // Add the fee to the prior commitments address.
@@ -223,7 +223,7 @@ contract MASSToken is StandardToken {
     function finalize() external {
       if (isFinalized) throw;
       require (msg.sender == contractOwner); // locks finalize to the ultimate ETH owner
-      if(block.number <= fundingEndBlock && totalSupply != tokenCreationCap) throw;
+      if(block.number <= fundingEndBlock && _totalSupply != tokenCreationCap) throw;
       // move to operational
       isFinalized = true;
       uint256 poolBalance = this.balance; // Store the eth balance of the entire pool.

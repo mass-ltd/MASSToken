@@ -2,10 +2,11 @@ pragma solidity ^0.4.10;
 import "./SafeMath.sol";
 
 contract Token {
-    uint256 public totalSupply;
+    uint256 public _totalSupply;
     bool public releaseFunds = false;
     address public massFundDeposit; // deposit address for MASS for MASS Ltd. owned tokens
     uint256 public totalEthereum = 0; // Hold the total value of Ethereum of the entire pool, used to calculate cashout/burn.
+    function totalSupply() constant returns (uint totalSupply);
     function balanceOf(address _owner) constant returns (uint256 balance);
     function transfer(address _to, uint256 _value) returns (bool success);
     function transferFrom(address _from, address _to, uint256 _value) returns (bool success);
@@ -31,6 +32,10 @@ contract Token {
 /*  ERC 20 token */
 contract StandardToken is Token {
     using SafeMath for uint256;
+    
+    function totalSupply() constant returns (uint256 totalSupply) {
+      totalSupply = _totalSupply;
+    }
 
     function transfer(address _to, uint256 _value) returns (bool success) {
       if (!allowTransfers) throw;
@@ -52,7 +57,7 @@ contract StandardToken is Token {
       if (!allowTransfers) throw;
       //if MASS Ltd. is trying to trade, check that it's been 1 year.
       if (_from == massFundDeposit) {
-          if(!releaseFunds) throw;
+          if(!releaseFunds) return false;
       }
       if (balances[_from] >= _value && allowed[_from][msg.sender] >= _value && _value > 0) {
         balances[_to] += _value;
@@ -104,7 +109,7 @@ contract StandardToken is Token {
     function burn(uint256 _value) {
         if (!allowTransfers) throw; //Don't allow burning during payouts.
         if (now < saleStart + (60 days)) throw; //Don't allow burn/cashout for 2 months. TEST
-        totalSupply -= _value;
+        _totalSupply -= _value;
         balances[msg.sender] -= _value;
         Burn(msg.sender, _value);
     }
