@@ -35,12 +35,16 @@ contract MASSToken is StandardToken {
     uint256 public totalPreSale = 0; // Store the number of tokens sold during presale.
     
     // presale/ICO bonues
-    uint256 public constant massFee = 10; // 10%
-    uint256 public constant promisoryFee = 100;  // 1%
-    uint256 public constant icoSaleBonus20 = 200; // 20% more tokens for first 5m tokens on ICO
-    uint256 public constant icoSaleBonus20Cap = 5 * (10**6) * 10**decimals;
-    uint256 public constant icoSaleBonus10 = 100; // 10% more tokens for next 10m tokens on ICO
-    uint256 public constant icoSaleBonus10Cap = 15 * (10**6) * 10**decimals;
+    uint256 constant massFee = 10; // 10%
+    uint256 constant promisoryFee = 100;  // 1%
+    uint256 constant icoSaleBonus20 = 200; // 20% more tokens for first 5m tokens on ICO
+    uint256 constant icoSaleBonus20Cap = 5 * (10**6) * 10**decimals;
+    uint256 constant icoSaleBonus10 = 100; // 10% more tokens for next 10m tokens on ICO
+    uint256 constant icoSaleBonus10Cap = 15 * (10**6) * 10**decimals;
+    uint256 constant icoSaleBonus20EthCap = 5000 * 10**decimals; // 5k eth cap for the first 5m tokens
+    uint256 constant icoSaleBonus10EthCap = 10000 * 10**decimals; // 10k eth cap for the next 10m tokens
+    uint256 public icoSaleBonus20EthPool = 0; // Track the eth received for each bonus pool so we can split properly.
+    uint256 public icoSaleBonus10EthPool = 0;
 
     // events
     event LogRefund(address indexed _to, uint256 _value);
@@ -83,15 +87,15 @@ contract MASSToken is StandardToken {
     function releasePreSaleTokens(address _address, uint256 _amount, uint256 _bonus, uint256 _massFund, uint256 _bountyAndPriorFund) external {
         require (msg.sender == contractOwner);
         if (block.number > fundingStartBlock) throw; // Do not allow this one the ICO starts.
-        balances[_address] = _amount;
-        bonuses[_address] = _bonus;
-        balances[massFundDeposit] = _massFund; // 10% goes to MASS Cloud Ltd.
-        balances[massPromisoryDeposit] = _bountyAndPriorFund; // 1% goes to prior commitments.
-        balances[massBountyDeposit] = _bountyAndPriorFund; // 1% goes to bounty programs.
+        balances[_address] = balances[_address].add(_amount);
+        bonuses[_address] = bonuses[_address].add(_bonus);
+        balances[massFundDeposit] = balances[massFundDeposit].add(_massFund); // 10% goes to MASS Cloud Ltd.
+        balances[massPromisoryDeposit] = balances[massPromisoryDeposit].add(_bountyAndPriorFund); // 1% goes to prior commitments.
+        balances[massBountyDeposit] = balances[massBountyDeposit].add(_bountyAndPriorFund); // 1% goes to bounty programs.
         _totalSupply = _totalSupply.add(balances[_address]);
         _totalSupply = _totalSupply.add(_massFund);
         _totalSupply = _totalSupply.add(_bountyAndPriorFund);
-        _totalSupply = _totalSupply.add(_bountyAndPriorFund);
+        _totalSupply = _totalSupply.add(_bountyAndPriorFund); // Twice, once for bounty and once for prior commitments.
         totalPreSale = totalPreSale.add(_totalSupply);
         CreateMASS(_address, balances[_address]);
     }
@@ -183,21 +187,29 @@ contract MASSToken is StandardToken {
       //Handle ico bonuses
       uint256 tmpExchangeRate = 0;
       uint256 bonusTokens = 0;
-      uint256 tmpTotalSupply = _totalSupply;
-      tmpTotalSupply = _totalSupply.sub(totalPreSale);
+      uint256 tmpTotalSupply = _totalSupply.sub(totalPreSale);
+      uint256 bonusPool = 0; // Check against the bonus token 'pool' to make sure we don't go over.
+      uint256 bonusPoolRemainder = 0;
+      uint256 tokens = 0;
       // TODO: Add check against going over bonus cap.
-      if (tmpTotalSupply < icoSaleBonus20Cap) {
-          bonusTokens = icoSaleBonus20.mul(msg.value);
-          tmpExchangeRate = tokenExchangeRate.add(icoSaleBonus20);
-      } else if (tmpTotalSupply < icoSaleBonus10Cap) {
-          bonusTokens = icoSaleBonus10.mul(msg.value);
-          tmpExchangeRate = tokenExchangeRate.add(icoSaleBonus10);
-      }
-      
-      if (tokenExchangeRate > tmpExchangeRate) {
-        uint256 tokens = msg.value.mul(tokenExchangeRate); // check that we're not over totals
-      } else {
-        tokens = msg.value.mul(tmpExchangeRate); // check that we're not over totals
+      if (tmpTotalSupply <= icoSaleBonus20Cap) {
+        bonusTokens = icoSaleBonus20.mul(msg.value);
+        tmpExchangeRate = tokenExchangeRate.add(icoSaleBonus20);
+        tokens = msg.value.mul(tmpExchangeRate);
+        bonusPool = tokens.add(tmpTotalSupply);
+        if (bonusPool > icoSaleBonus20Cap) { // We went over the bonus cap, need to split the bonus.
+          
+        }
+      } else if (tmpTotalSupply <= icoSaleBonus10Cap) {
+        bonusTokens = icoSaleBonus10.mul(msg.value);
+        tmpExchangeRate = tokenExchangeRate.add(icoSaleBonus10);
+        tokens = msg.value.mul(tmpExchangeRate);
+        bonusPool = tokens.add(tmpTotalSupply);
+        if (bonusPool > icoSaleBonus10Cap) { // We went over the bonus cap, need to split again.
+          
+        }
+      } else { // No bonus
+        tokens = msg.value.mul(tokenExchangeRate);
       }
       
       //MASS Ltd. takes 10% on top of purchases.
