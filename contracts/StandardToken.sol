@@ -6,16 +6,16 @@ contract Token {
     bool public releaseFunds = false;
     address public massFundDeposit; // deposit address for MASS for MASS Ltd. owned tokens
     uint256 public totalEthereum = 0; // Hold the total value of Ethereum of the entire pool, used to calculate cashout/burn.
-    function totalSupply() constant returns (uint totalSupply);
+    function totalSupply() constant returns (uint256 totalSupply);
     function balanceOf(address _owner) constant returns (uint256 balance);
     function transfer(address _to, uint256 _value) returns (bool success);
     function transferFrom(address _from, address _to, uint256 _value) returns (bool success);
     function approve(address _spender, uint256 _value) returns (bool success);
     function allowance(address _owner, address _spender) constant returns (uint256 remaining);
-    function stake(uint256 _value);
+    function stake(uint256 _value) constant returns (bool success);
     function balanceStaked(address _owner) constant returns (uint256 staked);
-    function unstake(uint256 _value);
-    function burn(uint256 _amount);
+    function unstake(uint256 _value) constant returns (bool success);
+    function burn(uint256 _amount) constant returns (bool success);
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
     event Stake(address indexed _from, uint256 _value);
@@ -84,9 +84,9 @@ contract StandardToken is Token {
       return allowed[_owner][_spender];
     }
     
-    function stake(uint256 _value) {
-        if (!allowTransfers) throw; // Don't allow staking during payouts.
-        if (balances[msg.sender] < _value) throw; // Check to make sure they are not staking more than they have.
+    function stake(uint256 _value) constant returns (bool success) {
+        if (!allowTransfers) return false; // Don't allow staking during the ICO.
+        if (balances[msg.sender] < _value) return false; // Check to make sure they are not staking more than they have.
         balances[msg.sender] -= _value;
         staking[msg.sender] += _value;
         Stake(msg.sender, _value);
@@ -96,9 +96,9 @@ contract StandardToken is Token {
         return staking[_owner];
     }
 
-    function unstake(uint256 _value) {
-        if (!allowTransfers) throw; // Don't allow staking during payouts.
-        if (staking[msg.sender] < _value) throw; // Make sure they can't unstake more than they have staked.
+    function unstake(uint256 _value) constant returns (bool success) {
+        if (!allowTransfers) return false; // Don't allow staking during the ICO.
+        if (staking[msg.sender] < _value) return false; // Make sure they can't unstake more than they have staked.
         balances[msg.sender] += _value;
         staking[msg.sender] -= _value;
         UnStake(msg.sender, _value);
@@ -106,9 +106,9 @@ contract StandardToken is Token {
     
     //Allow token holders to cash out and burn their tokens.
     //The backend will handle the math and sending the eth since Solidity isn't efficient at math nor is it precise enough.
-    function burn(uint256 _value) {
-        if (!allowTransfers) throw; //Don't allow burning during payouts.
-        if (now < saleStart + (60 days)) throw; //Don't allow burn/cashout for 2 months. TEST
+    function burn(uint256 _value) constant returns (bool success) {
+        if (!allowTransfers) return false; //Don't allow burning during payouts.
+        if (now < saleStart + (60 days)) return false; //Don't allow burn/cashout for 2 months. TEST
         _totalSupply -= _value;
         balances[msg.sender] -= _value;
         Burn(msg.sender, _value);

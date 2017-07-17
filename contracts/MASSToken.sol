@@ -67,7 +67,6 @@ contract MASSToken is StandardToken {
         uint256 _fundingStartBlock,
         uint256 _fundingEndBlock)
     {
-      isFinalized = false;                   //controls pre through crowdsale state
       ethFundDeposit = _ethFundDeposit;
       ethFeeDeposit = _ethFeeDeposit;
       massFundDeposit = _massFundDeposit;
@@ -98,7 +97,7 @@ contract MASSToken is StandardToken {
         _totalSupply = _totalSupply.add(_massFund);
         _totalSupply = _totalSupply.add(_bountyAndPriorFund);
         _totalSupply = _totalSupply.add(_bountyAndPriorFund); // Twice, once for bounty and once for prior commitments.
-        totalPreSale = totalPreSale.add(_totalSupply);
+        totalPreSale = _totalSupply; // Set the total presale to the total supply, overwriting it each iteration as the final value will always be correct.
         CreateMASS(_address, balances[_address]);
     }
 
@@ -111,13 +110,17 @@ contract MASSToken is StandardToken {
     /// @dev Increase entire pool's worth whenever we get a unstaked block rewards.
     function increaseTotalEthereumBalance(uint256 _amount) {
         require (msg.sender == contractOwner);
-        totalEthereum += _amount;
+        totalEthereum = totalEthereum.add(_amount);
     }
 
     /// @dev Decrease entire pool's worth whenever we burn.
     function decreaseTotalEthereumBalance(uint256 _amount) {
         require (msg.sender == contractOwner);
-        totalEthereum -= _amount;
+        if (_amount <= totalEthereum) {
+          totalEthereum = totalEthereum.sub(_amount);
+        } else {
+          totalEthereum = 0;
+        }
     }
     
     /// @dev Set the ICO funding period once presale is over.
