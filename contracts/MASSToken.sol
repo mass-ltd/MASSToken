@@ -167,15 +167,15 @@ contract MASSToken is StandardToken {
     
     // Accept eth for burns, do nothing else.
     function addEth() payable external {
-    		if (!isFinalized) throw;
-    		totalEthereum += msg.value;
+      if (!isFinalized) throw;
+      totalEthereum += msg.value;
     }
     
     // Sends eth to ethFundAddress.
     function sendEth(uint256 _value) external {
-        if (!isFinalized) throw;
-        require (msg.sender == contractOwner);
-        if(!ethFundDeposit.send(_value)) throw;
+      if (!isFinalized) throw;
+      require (msg.sender == contractOwner);
+      if(!ethFundDeposit.send(_value)) throw;
     }
 
     /// Accepts ether and creates new MASS tokens.
