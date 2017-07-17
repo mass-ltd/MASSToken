@@ -23,7 +23,7 @@ contract Token {
     event Burn(address indexed _owner, uint256 _value);
     
     // extra functionality while live
-    bool public allowTransfers = false; // Stop transfers during payout to prevent abuse.
+    bool public allowTransfers = false; // Stop transfers during ICO.
     // Lock MASS Ltd. tokens for 1 year
     uint256 public saleStart;
 }

@@ -283,20 +283,6 @@ contract MASSToken is StandardToken {
       if(!ethPromisoryDeposit.send(promisoryBalance)) throw; // send 1% eth to the promisory address for prior commitments.
     }
     
-    /// @dev Disable transfers of MASS during payouts.
-    function disableTransfers() {
-        if (!isFinalized) throw;
-        require (msg.sender == contractOwner);
-        allowTransfers = false;
-    }
-    
-    /// @dev Allow transfers after MASS payouts.
-    function enableTransfers() {
-        if (!isFinalized) throw;
-        require (msg.sender == contractOwner);
-        allowTransfers = true;
-    }
-
     /// @dev Change ownership of contract in case of emergency.
     function changeOwnership(address newOwner) {
         require (msg.sender == contractOwner);
