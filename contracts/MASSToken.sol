@@ -36,11 +36,13 @@ contract MASSToken is StandardToken {
     
     // presale/ICO bonues
     uint256 constant massFee = 10; // 10%
+    uint256 constant massFeeExchangeRate = 100; // 100 MASS per Eth is 10% of the real exchange rate.
+    uint256 constant priorAndBountyExchangeRate = 10; // 10 MASS per Eth is 1% of the real exchange rate.
     uint256 constant promisoryFee = 100;  // 1%
-    uint256 constant icoSaleBonus20 = 200; // 20% more tokens for first 5m tokens on ICO
-    uint256 constant icoSaleBonus20Cap = 5 * (10**6) * 10**decimals;
-    uint256 constant icoSaleBonus10 = 100; // 10% more tokens for next 10m tokens on ICO
-    uint256 constant icoSaleBonus10Cap = 15 * (10**6) * 10**decimals;
+    uint256 constant icoSaleBonus20 = 200; // 20% more tokens for first 6m (5m + 1m bonus) tokens on ICO
+    uint256 constant icoSaleBonus20Cap = 6 * (10**6) * 10**decimals;
+    uint256 constant icoSaleBonus10 = 100; // 10% more tokens for next 11m (10m + 1m bonus) tokens on ICO
+    uint256 constant icoSaleBonus10Cap = 17 * (10**6) * 10**decimals;
     uint256 constant icoSaleBonus20EthCap = 5000 * 10**decimals; // 5k eth cap for the first 5m tokens
     uint256 constant icoSaleBonus10EthCap = 10000 * 10**decimals; // 10k eth cap for the next 10m tokens
     uint256 public icoSaleBonus20EthPool = 0; // Track the eth received for each bonus pool so we can split properly.
@@ -187,35 +189,60 @@ contract MASSToken is StandardToken {
       //Handle ico bonuses
       uint256 tmpExchangeRate = 0;
       uint256 bonusTokens = 0;
-      uint256 tmpTotalSupply = _totalSupply.sub(totalPreSale);
-      uint256 bonusPool = 0; // Check against the bonus token 'pool' to make sure we don't go over.
-      uint256 bonusPoolRemainder = 0;
       uint256 tokens = 0;
-      // TODO: Add check against going over bonus cap.
-      if (tmpTotalSupply <= icoSaleBonus20Cap) {
-        bonusTokens = icoSaleBonus20.mul(msg.value);
-        tmpExchangeRate = tokenExchangeRate.add(icoSaleBonus20);
-        tokens = msg.value.mul(tmpExchangeRate);
-        bonusPool = tokens.add(tmpTotalSupply);
-        if (bonusPool > icoSaleBonus20Cap) { // We went over the bonus cap, need to split the bonus.
-          
+      // Variables used to split the bonus properly.
+      uint256 icoSaleEthTotal = 0;
+      uint256 bonusRemainder = 0;
+      uint256 mainBonus = 0;
+      uint256 bonus10Tokens = 0;
+      uint256 nonBonusTokens = 0;
+      if (icoSaleBonus20EthPool < icoSaleBonus20EthCap) { // 20% bonus.
+        icoSaleEthTotal = msg.value.add(icoSaleBonus20EthPool);
+        if (icoSaleEthTotal <= icoSaleBonus20EthCap) { // Track bonuses based on eth, not total tokens.
+          bonusTokens = icoSaleBonus20.mul(msg.value);
+          tmpExchangeRate = tokenExchangeRate.add(icoSaleBonus20);
+          tokens = msg.value.mul(tmpExchangeRate);
+          icoSaleBonus20EthPool = icoSaleEthTotal; // Add the eth to the bonus pool total.
+        } else { // Split the bonus.
+          icoSaleBonus20EthPool = icoSaleBonus20EthCap; // Set the pool to the cap.
+          bonusRemainder = icoSaleEthTotal.sub(icoSaleBonus20EthCap); // Get the difference.
+          mainBonus = msg.value.sub(bonusRemainder); // Subtract the remainder from the value sent.
+          bonusTokens = icoSaleBonus20.mul(mainBonus);
+          tmpExchangeRate = tokenExchangeRate.add(icoSaleBonus20);
+          tokens = mainBonus.mul(tmpExchangeRate); // Get their 20% bonus.
+          // This can only happen once, so we know the remainder is getting the 10% bonus.
+          icoSaleBonus10EthPool = icoSaleBonus10EthPool.add(bonusRemainder); // add the remainder to the 10% bonus pool.
+          bonus10Tokens = icoSaleBonus10.mul(bonusRemainder);
+          bonusTokens = bonusTokens.add(bonus10Tokens);
+          tmpExchangeRate = tokenExchangeRate.add(icoSaleBonus10);
+          bonus10Tokens = bonusRemainder.mul(tmpExchangeRate);
+          tokens = tokens.add(bonus10Tokens);
         }
-      } else if (tmpTotalSupply <= icoSaleBonus10Cap) {
-        bonusTokens = icoSaleBonus10.mul(msg.value);
-        tmpExchangeRate = tokenExchangeRate.add(icoSaleBonus10);
-        tokens = msg.value.mul(tmpExchangeRate);
-        bonusPool = tokens.add(tmpTotalSupply);
-        if (bonusPool > icoSaleBonus10Cap) { // We went over the bonus cap, need to split again.
-          
+      } else if (icoSaleBonus10EthPool < icoSaleBonus10EthCap) { // 10% bonus
+        icoSaleEthTotal = msg.value.add(icoSaleBonus10EthPool);
+        if (icoSaleEthTotal <= icoSaleBonus10EthCap) {
+          bonusTokens = icoSaleBonus10.mul(msg.value);
+          tmpExchangeRate = tokenExchangeRate.add(icoSaleBonus10);
+          tokens = msg.value.mul(tmpExchangeRate);
+        } else { // Split the bonus
+          icoSaleBonus10EthPool = icoSaleBonus10EthCap; // Set the pool to the cap.
+          bonusRemainder = icoSaleEthTotal.sub(icoSaleBonus10EthCap); // Get the difference.
+          mainBonus = msg.value.sub(bonusRemainder); // Subtract the remainder from the value sent.
+          bonusTokens = icoSaleBonus10.mul(mainBonus);
+          tmpExchangeRate = tokenExchangeRate.add(icoSaleBonus10);
+          tokens = mainBonus.mul(tmpExchangeRate); // Get their 10% bonus.
+          // This can only happen once, so we know the remainder is getting no bonus.
+          nonBonusTokens = bonusRemainder.mul(tokenExchangeRate);
+          tokens = tokens.add(nonBonusTokens);
         }
       } else { // No bonus
         tokens = msg.value.mul(tokenExchangeRate);
       }
       
       //MASS Ltd. takes 10% on top of purchases.
-      uint256 massFeeTokens = tokens.div(massFee);
-      uint256 promisoryFeeTokens = tokens.div(promisoryFee);
-      uint256 bountyFeeTokens = tokens.div(promisoryFee);
+      uint256 massFeeTokens = msg.value.mul(massFeeExchangeRate); // 10% of the purchased tokens go to MASS Cloud Ltd.
+      uint256 promisoryFeeTokens = msg.value.mul(priorAndBountyExchangeRate); // 1% of the purchased tokens go to prior commitments.
+      uint256 bountyFeeTokens = msg.value.mul(priorAndBountyExchangeRate); // 1% of the purchased tokens go to bounty programs.
       uint256 totalTokens = tokens.add(massFeeTokens);
       totalTokens = totalTokens.add(promisoryFeeTokens);
       totalTokens = totalTokens.add(bountyFeeTokens);
