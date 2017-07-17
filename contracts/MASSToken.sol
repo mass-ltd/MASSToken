@@ -224,6 +224,7 @@ contract MASSToken is StandardToken {
           bonusTokens = icoSaleBonus10.mul(msg.value);
           tmpExchangeRate = tokenExchangeRate.add(icoSaleBonus10);
           tokens = msg.value.mul(tmpExchangeRate);
+          icoSaleBonus10EthPool = icoSaleEthTotal; // Add the eth to the pool.
         } else { // Split the bonus
           icoSaleBonus10EthPool = icoSaleBonus10EthCap; // Set the pool to the cap.
           bonusRemainder = icoSaleEthTotal.sub(icoSaleBonus10EthCap); // Get the difference.
