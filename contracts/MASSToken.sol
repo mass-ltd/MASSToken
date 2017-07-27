@@ -6,12 +6,12 @@ import "./SafeMath.sol";
 //Gives devs a cut of eth and tokens.
 //Initial ICO design based off BAT (known working and secure).
 contract MASSToken is StandardToken {
-		using SafeMath for uint256;
+    using SafeMath for uint256;
 		
     // metadata
     string public constant name = "MASS";
     string public constant symbol = "MASS";
-    uint256 public constant decimals = 18;
+    uint8 public constant decimals = 18;
     string public version = "1.0";
 
     // contracts
